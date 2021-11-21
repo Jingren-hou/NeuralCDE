@@ -23,8 +23,9 @@ def download():
         os.mkdir(base_base_loc)
     if not os.path.exists(base_loc):
         os.mkdir(base_loc)
-    urllib.request.urlretrieve('http://www.timeseriesclassification.com/Downloads/Archives/Multivariate2018_ts.zip',
-                               str(loc))
+    # 国内网络下载实在有毛病，所以手动下载了数据集放在loc里，这里注释掉防止又自动下载报错。该命令可以下载并解压文件。
+    # urllib.request.urlretrieve('http://www.timeseriesclassification.com/Downloads/Archives/Multivariate2018_ts.zip',
+    #                           str(loc))
 
     with zipfile.ZipFile(loc, 'r') as f:
         f.extractall(str(base_loc))
@@ -37,7 +38,7 @@ def _pad(channel, maxlen):
     out[:channel.size(0)] = channel
     return out
 
-
+# 可用的替代UEA数据集，详情见’The UEA multivariate time series classification archive, 2018‘dataset介绍
 valid_dataset_names = {'ArticularyWordRecognition',
                        'FaceDetection',
                        'NATOPS',
