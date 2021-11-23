@@ -31,7 +31,8 @@ def split_data(tensor, stratify):
                                                                                   random_state=0,
                                                                                   shuffle=True,
                                                                                   stratify=stratify)
-
+    # 此处tensor是X，stratify是y，相当与特征和标签
+    # stratify=y: 使X被划分后的两个数据集的暗中对应的类标签的比例和y中的相同
     val_tensor, test_tensor = sklearn.model_selection.train_test_split(testval_tensor,
                                                                        train_size=0.5,
                                                                        random_state=1,
@@ -43,7 +44,7 @@ def split_data(tensor, stratify):
 def normalise_data(X, y):
     train_X, _, _ = split_data(X, y)
     out = []
-    for Xi, train_Xi in zip(X.unbind(dim=-1), train_X.unbind(dim=-1)):
+    for Xi, train_Xi in zip(X.unbind(dim=-1), train_X.unbind(dim=-1)):      # 对channel遍历，对每个channel分别归一化，取得train_Xi的目的是按他的mean和std归一化
         train_Xi_nonan = train_Xi.masked_select(~torch.isnan(train_Xi))
         mean = train_Xi_nonan.mean()  # compute statistics using only training data.
         std = train_Xi_nonan.std()
@@ -59,11 +60,11 @@ def preprocess_data(times, X, y, final_index, append_times, append_intensity):
     # depend on that order.
     augmented_X = []
     if append_times:
-        augmented_X.append(times.unsqueeze(0).repeat(X.size(0), 1).unsqueeze(-1))
+        augmented_X.append(times.unsqueeze(0).repeat(X.size(0), 1).unsqueeze(-1))       # augmented_X:list=([0]=Tensor:shape=(batch, length, 1))
     if append_intensity:
         intensity = ~torch.isnan(X)  # of size (batch, stream, channels)
         intensity = intensity.to(X.dtype).cumsum(dim=1)
-        augmented_X.append(intensity)
+        augmented_X.append(intensity)       # augmented_X:list=([0]=Tensor:shape=(batch, length, 1), [1]=Tensor:shape=(batch, length, channel))
     augmented_X.append(X)
     if len(augmented_X) == 1:
         X = augmented_X[0]
@@ -71,7 +72,7 @@ def preprocess_data(times, X, y, final_index, append_times, append_intensity):
         X = torch.cat(augmented_X, dim=2)
 
     train_X, val_X, test_X = split_data(X, y)
-    train_y, val_y, test_y = split_data(y, y)
+    train_y, val_y, test_y = split_data(y, y)       # split的random_state固定值保证了划分的时候X和y的排列是一样的
     train_final_index, val_final_index, test_final_index = split_data(final_index, y)
 
     train_coeffs = controldiffeq.natural_cubic_spline_coeffs(times, train_X)
@@ -87,7 +88,7 @@ def preprocess_data(times, X, y, final_index, append_times, append_intensity):
 def wrap_data(times, train_coeffs, val_coeffs, test_coeffs, train_y, val_y, test_y, train_final_index, val_final_index,
               test_final_index, device, batch_size, num_workers=4):
     times = times.to(device)
-    train_coeffs = tuple(coeff.to(device) for coeff in train_coeffs)
+    train_coeffs = tuple(coeff.to(device) for coeff in train_coeffs)        # 特征系数被for拆散后又通过tuple重新组织成元组
     val_coeffs = tuple(coeff.to(device) for coeff in val_coeffs)
     test_coeffs = tuple(coeff.to(device) for coeff in test_coeffs)
     train_y = train_y.to(device)
@@ -110,7 +111,7 @@ def wrap_data(times, train_coeffs, val_coeffs, test_coeffs, train_y, val_y, test
 
 def save_data(dir, **tensors):
     for tensor_name, tensor_value in tensors.items():
-        torch.save(tensor_value, str(dir / tensor_name) + '.pt')
+        torch.save(tensor_value, str(dir / tensor_name) + '.pt')      # 当dir为PosixPath为str时，可添加/在中间，为str时不可
 
 
 def load_data(dir):

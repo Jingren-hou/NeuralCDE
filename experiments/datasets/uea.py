@@ -23,7 +23,7 @@ def download():
         os.mkdir(base_base_loc)
     if not os.path.exists(base_loc):
         os.mkdir(base_loc)
-    # 国内网络下载实在有毛病，所以手动下载了数据集放在loc里，这里注释掉防止又自动下载报错。该命令可以下载并解压文件。
+    # 国内网络下载实在有毛病，所以手动下载了数据集放在loc里，这里注释掉防止又自动下载报错。该urlretrieve命令可以下载并解压文件。
     # urllib.request.urlretrieve('http://www.timeseriesclassification.com/Downloads/Archives/Multivariate2018_ts.zip',
     #                           str(loc))
 
@@ -33,6 +33,7 @@ def download():
 
 # Is this actually necessary?
 def _pad(channel, maxlen):
+    # padding channel using the last value to maxlen
     channel = torch.tensor(channel)
     out = torch.full((maxlen,), channel[-1])
     out[:channel.size(0)] = channel
@@ -83,19 +84,25 @@ def _process_data(dataset_name, missing_rate, intensity):
     test_X, test_y = sktime.utils.load_data.load_from_tsfile_to_dataframe(str(base_filename) + '_TEST.ts')
     train_X = train_X.to_numpy()
     test_X = test_X.to_numpy()
+    # for"CharacterTrajectories"data, train_X.shape = (1422, 3), train_y.shape =(1422), test_X = (1436, 3), test_y = (1436)
     X = np.concatenate((train_X, test_X), axis=0)
     y = np.concatenate((train_y, test_y), axis=0)
+    # X.shape = (2858, 3), 其中3是channel, 每个channel是一个numpy的series类型, 储存着一定长度的单变量序列eg:
+    # {Series:(116,)}(0, -0.13015)(1, -0.1813121)(2, -0.0234104)...(115, 0.67359)
+    # y.shape = (2858)，type=str
 
+    # 每个batch数据的时间长度可能不同，这里记录下来了lengths: tensor([116, 131, 140, ..., 150, 160, 143])
     lengths = torch.tensor([len(Xi[0]) for Xi in X])
     final_index = lengths - 1
-    maxlen = lengths.max()
+    maxlen = lengths.max()      # 对于"CharacterTrajectories"data，maxlen=182
     # X is now a numpy array of shape (batch, channel)
     # Each channel is a pandas.core.series.Series object of length corresponding to the length of the time series
     X = torch.stack([torch.stack([_pad(channel, maxlen) for channel in batch], dim=0) for batch in X], dim=0)
-    # X is now a tensor of shape (batch, channel, length)
+    # X is a tensor of shape (batch, channel, length(padding to maxlen)) now
     X = X.transpose(-1, -2)
     # X is now a tensor of shape (batch, length, channel)
     times = torch.linspace(0, X.size(1) - 1, X.size(1))
+    # times = tensor([0, 1, 2, ..., length-1])
 
     generator = torch.Generator().manual_seed(56789)
     for Xi in X:
@@ -103,13 +110,15 @@ def _process_data(dataset_name, missing_rate, intensity):
         Xi[removed_points] = float('nan')
 
     # Now fix the labels to be integers from 0 upwards
-    targets = co.OrderedDict()
+    targets = co.OrderedDict()      # 有序字典，建立y中的str类别到数字标签的映射
     counter = 0
     for yi in y:
         if yi not in targets:
             targets[yi] = counter
             counter += 1
-    y = torch.tensor([targets[yi] for yi in y])
+    # target=OrderedDict([('1',0),('2',1),('3',2),...,('20',19])
+
+    y = torch.tensor([targets[yi] for yi in y])     # 将y中的str类别映射成数字标签
 
     (times, train_coeffs, val_coeffs, test_coeffs, train_y, val_y, test_y, train_final_index, val_final_index,
      test_final_index, input_channels) = common.preprocess_data(times, X, y, final_index, append_times=True,
