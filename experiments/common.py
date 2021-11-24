@@ -124,6 +124,7 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
         epoch_per_metric = 10
         plateau_terminate = 50
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=1, mode='max')
+        # 准确率不再提高时降低学习率
 
     tqdm_range = tqdm.tqdm(range(max_epochs))
     tqdm_range.write('Starting training for model:\n\n' + str(model) + '\n\n')
@@ -136,6 +137,7 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
                 break
             with _SuppressAssertions(tqdm_range):
                 *train_coeffs, train_y, lengths = batch
+                # 其中的lengths=train_final_index, train_coeffs:list contain 4 coeffs which is (batch, length, channel)
                 pred_y = model(times, train_coeffs, lengths, **kwargs)
                 loss = loss_fn(pred_y, train_y)
                 loss.backward()

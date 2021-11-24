@@ -54,3 +54,5 @@ def run_all(group, device, dataset_name, model_names=('ncde', 'odernn', 'dt', 'd
         # Hyperparameters selected as what ODE-RNN did best with.
         for _ in range(5):
             main(dataset_name, missing_rate, device, model_name=model_name, **model_kwargs[model_name])
+            # **dict将字典对象解包成一个一个的位置参数传入到函数中去，直接传个字典对象进去，函数是不认识的，同理*tuple是解包元组
+            # 即不能写成main(dataset_name, ..., model_kwargs[model_name])
